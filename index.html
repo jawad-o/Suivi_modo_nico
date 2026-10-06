@@ -5,445 +5,303 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TwitchMod OS | Panel Pro</title>
     
-    <!-- Moteurs & Bibliothèques -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <script>
         tailwind.config = {
-            theme: {
-                extend: { 
-                    colors: { twitch: '#9146FF', dark: '#09090b', panel: '#18181b', panelHover: '#27272a', accent: '#3b82f6' },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
-                }
-            }
+            theme: { extend: { colors: { twitch: '#9146FF', dark: '#09090b', panel: '#18181b', panelHover: '#27272a' }, fontFamily: { sans: ['Inter', 'sans-serif'] } } }
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { background-color: #09090b; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #09090b 70%); background-attachment: fixed; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-        .glass-panel { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
-        .hover-glow:hover { box-shadow: 0 0 20px rgba(145, 70, 255, 0.2); border-color: rgba(145, 70, 255, 0.5); transform: translateY(-2px); }
-        .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .nav-item.active { background: linear-gradient(90deg, rgba(145,70,255,0.2) 0%, transparent 100%); border-left: 3px solid #9146FF; color: white; }
-        .pulse-status { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+        .glass-panel { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-item.active { background: rgba(145,70,255,0.15); border-left: 3px solid #9146FF; color: white; }
     </style>
 </head>
 <body class="text-gray-200 h-screen flex overflow-hidden selection:bg-twitch selection:text-white" onload="initSystem()">
 
-    <!-- SIDEBAR MODERNE -->
-    <aside class="w-20 lg:w-72 border-r border-white/5 bg-panel/50 backdrop-blur-xl flex flex-col justify-between transition-all duration-300 z-50">
+    <!-- SIDEBAR -->
+    <aside class="w-72 border-r border-white/5 bg-panel/80 backdrop-blur-xl flex flex-col justify-between z-40">
         <div>
-            <div class="h-20 flex items-center justify-center lg:justify-start lg:px-8 border-b border-white/5">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-twitch to-purple-800 flex items-center justify-center shadow-lg shadow-twitch/30 text-white font-black text-xl">
-                    <i class="fa-solid fa-bolt"></i>
-                </div>
-                <span class="hidden lg:block ml-3 font-bold text-xl tracking-tight text-white">TwitchMod <span class="text-twitch">OS</span></span>
+            <div class="h-20 flex items-center px-8 border-b border-white/5">
+                <div class="w-10 h-10 rounded-xl bg-twitch flex items-center justify-center text-white font-black text-xl"><i class="fa-solid fa-bolt"></i></div>
+                <span class="ml-3 font-bold text-xl tracking-tight text-white">TwitchMod <span class="text-twitch">OS</span></span>
             </div>
-            
-            <nav class="mt-8 px-2 lg:px-4 space-y-2">
-                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-item active w-full flex items-center justify-center lg:justify-start px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all">
-                    <i class="fa-solid fa-chart-pie w-6"></i>
-                    <span class="hidden lg:block font-medium">Dashboard HQ</span>
+            <nav class="mt-8 px-4 space-y-2">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-item active w-full flex items-center px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all">
+                    <i class="fa-solid fa-chart-pie w-8 text-center"></i><span class="font-medium">Dashboard Global</span>
                 </button>
-                <button onclick="switchTab('roster')" id="tab-roster" class="nav-item w-full flex items-center justify-center lg:justify-start px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all">
-                    <i class="fa-solid fa-users-viewfinder w-6"></i>
-                    <span class="hidden lg:block font-medium">Roster & Profils</span>
+                <button onclick="switchTab('roster')" id="tab-roster" class="nav-item w-full flex items-center px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all">
+                    <i class="fa-solid fa-address-card w-8 text-center"></i><span class="font-medium">Dossiers RH (Complets)</span>
                 </button>
-                <button onclick="switchTab('scanner')" id="tab-scanner" class="nav-item w-full flex items-center justify-center lg:justify-start px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all group">
-                    <i class="fa-solid fa-radar text-twitch group-hover:animate-spin w-6"></i>
-                    <span class="hidden lg:block font-medium">Scanneur Temps Réel</span>
+                <button onclick="switchTab('scanner')" id="tab-scanner" class="nav-item w-full flex items-center px-4 py-3 text-gray-400 hover:text-white rounded-lg transition-all">
+                    <i class="fa-solid fa-radar w-8 text-center text-twitch"></i><span class="font-medium">Scanneur Temps Réel</span>
                 </button>
             </nav>
         </div>
-        
-        <div class="p-4 lg:p-6 border-t border-white/5 flex items-center justify-center lg:justify-start gap-3">
-            <div class="w-3 h-3 bg-emerald-500 rounded-full pulse-status"></div>
-            <div class="hidden lg:block text-xs">
-                <p class="font-bold text-white">Système en ligne</p>
-                <p class="text-gray-500" id="db-status">Recherche de base...</p>
-            </div>
+        <div class="p-6 border-t border-white/5 flex items-center gap-3">
+            <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+            <div class="text-xs"><p class="font-bold text-white">Base de données</p><p class="text-emerald-500" id="db-status">suivi.xlsx synchronisé</p></div>
         </div>
     </aside>
 
-    <!-- ZONE PRINCIPALE -->
-    <main class="flex-1 h-full overflow-y-auto relative scroll-smooth">
-        
-        <!-- HEADER GLOBALE -->
-        <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 sticky top-0 bg-dark/80 backdrop-blur-md z-40">
-            <h2 id="page-title" class="text-2xl font-black text-white tracking-tight">Dashboard HQ</h2>
-            <div class="flex items-center gap-4 bg-panel px-4 py-2 rounded-full border border-white/5">
-                <i class="fa-solid fa-clock text-twitch"></i>
-                <span id="live-clock" class="text-sm font-bold font-mono">00:00:00</span>
+    <main class="flex-1 h-full overflow-y-auto relative scroll-smooth p-10">
+        <h2 id="page-title" class="text-3xl font-black text-white tracking-tight mb-8">Dashboard Global</h2>
+
+        <!-- VUE 1 : DASHBOARD -->
+        <div id="view-dashboard" class="fade-in block">
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="glass-panel p-6 border-t-4 border-gray-500"><p class="text-gray-400 text-sm font-bold mb-2">Effectif</p><h3 class="text-4xl font-black text-white" id="stat-effectif">-</h3></div>
+                <div class="glass-panel p-6 border-t-4 border-[#10b981]"><p class="text-gray-400 text-sm font-bold mb-2">Assiduité Moyenne</p><h3 class="text-4xl font-black text-[#10b981]" id="stat-assiduite">-</h3></div>
+                <div class="glass-panel p-6 border-t-4 border-[#3b82f6]"><p class="text-gray-400 text-sm font-bold mb-2">Score Moyen</p><h3 class="text-4xl font-black text-[#3b82f6]" id="stat-moyenne">-</h3></div>
+                <div class="glass-panel p-6 border-t-4 border-[#ef4444]"><p class="text-gray-400 text-sm font-bold mb-2">Alertes RH</p><h3 class="text-4xl font-black text-[#ef4444]" id="stat-fantomes">-</h3></div>
             </div>
-        </header>
-
-        <div class="p-6 lg:p-10 max-w-7xl mx-auto">
-            
-            <!-- ============================== -->
-            <!-- VUE 1 : DASHBOARD HQ (APEXCHARTS)-->
-            <!-- ============================== -->
-            <div id="view-dashboard" class="fade-in block">
-                <!-- Top 4 KPIs -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="glass-panel p-6 hover-glow transition-all">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-gray-400 text-sm font-semibold uppercase">Effectif Opérationnel</p>
-                            <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><i class="fa-solid fa-users"></i></div>
-                        </div>
-                        <h3 class="text-4xl font-black text-white" id="stat-effectif">-</h3>
-                    </div>
-                    <div class="glass-panel p-6 hover-glow transition-all">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-gray-400 text-sm font-semibold uppercase">Top Modos (Élite)</p>
-                            <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><i class="fa-solid fa-crown"></i></div>
-                        </div>
-                        <h3 class="text-4xl font-black text-white" id="stat-top">-</h3>
-                    </div>
-                    <div class="glass-panel p-6 hover-glow transition-all">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-gray-400 text-sm font-semibold uppercase">Score Moyen Équipe</p>
-                            <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><i class="fa-solid fa-chart-line"></i></div>
-                        </div>
-                        <h3 class="text-4xl font-black text-white" id="stat-moyenne">-</h3>
-                    </div>
-                    <div class="glass-panel p-6 hover-glow transition-all border-b-4 border-red-500/50">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-gray-400 text-sm font-semibold uppercase">Alertes Fantômes</p>
-                            <div class="p-2 bg-red-500/10 text-red-400 rounded-lg"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        </div>
-                        <h3 class="text-4xl font-black text-white" id="stat-fantomes">-</h3>
-                    </div>
-                </div>
-
-                <!-- Graphiques Avancés -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <!-- Grand Graphique -->
-                    <div class="lg:col-span-2 glass-panel p-6">
-                        <h3 class="font-bold text-lg mb-1">Évolution des Scores Globaux</h3>
-                        <p class="text-gray-400 text-sm mb-6">Comparatif des 15 meilleurs modérateurs de la chaîne.</p>
-                        <div id="chart-scores" class="h-80 w-full"></div>
-                    </div>
-                    <!-- Jauge -->
-                    <div class="glass-panel p-6 flex flex-col justify-center items-center relative">
-                        <h3 class="font-bold text-lg mb-2 absolute top-6 left-6">Santé de l'Équipe</h3>
-                        <div id="chart-health" class="w-full mt-8"></div>
-                    </div>
-                </div>
+            <div class="grid grid-cols-3 gap-6">
+                <div class="col-span-2 glass-panel p-6"><h3 class="font-bold text-lg mb-4">Top 15 - Scores Globaux</h3><div id="chart-scores" class="h-80 w-full"></div></div>
+                <div class="glass-panel p-6 flex flex-col items-center"><h3 class="font-bold text-lg mb-4 w-full">Répartition des Grades</h3><div id="chart-health" class="w-full mt-4"></div></div>
             </div>
+        </div>
 
-            <!-- ============================== -->
-            <!-- VUE 2 : ROSTER & PROFILS (CRM) -->
-            <!-- ============================== -->
-            <div id="view-roster" class="fade-in hidden">
-                <div class="glass-panel p-1 flex items-center mb-8 relative">
-                    <i class="fa-solid fa-search absolute left-6 text-gray-400"></i>
-                    <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Rechercher un modérateur par son pseudo..." class="w-full bg-transparent border-none text-white px-14 py-4 focus:ring-0 focus:outline-none placeholder-gray-600 text-lg">
-                </div>
-                
-                <div id="roster-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Les cartes profils seront générées ici par JS -->
-                </div>
+        <!-- VUE 2 : ROSTER & FICHES COMPLÈTES (Le Vrai Cockpit) -->
+        <div id="view-roster" class="fade-in hidden">
+            <div class="glass-panel p-4 flex items-center mb-8 bg-dark/50 border-twitch/30">
+                <i class="fa-solid fa-search ml-4 text-twitch"></i>
+                <input type="text" id="search-input" onkeyup="filterRoster()" placeholder="Rechercher un modérateur pour ouvrir son dossier RH complet..." class="w-full bg-transparent border-none text-white px-6 py-2 focus:ring-0 focus:outline-none text-lg placeholder-gray-600">
             </div>
+            <div id="roster-grid" class="grid grid-cols-3 gap-6"></div>
+        </div>
 
-            <!-- ============================== -->
-            <!-- VUE 3 : SCANNEUR TEMPS RÉEL    -->
-            <!-- ============================== -->
-            <div id="view-scanner" class="fade-in hidden">
-                <div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
-                    
-                    <!-- Zone Upload -->
-                    <div class="xl:col-span-2 space-y-6">
-                        <div class="glass-panel p-8 text-center border-2 border-dashed border-gray-700 hover:border-twitch bg-dark/50 transition-all duration-300 cursor-pointer group relative overflow-hidden" id="dropzone">
-                            <div class="absolute inset-0 bg-gradient-to-t from-twitch/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div class="w-24 h-24 mx-auto bg-panel rounded-full flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform">
-                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-twitch"></i>
-                            </div>
-                            <h3 class="text-2xl font-black mb-2">Drop le log ici</h3>
-                            <p class="text-gray-400 mb-6">Glisse ton fichier .txt exporté de Twitch</p>
-                            <input type="file" id="fileInput" class="hidden" accept=".txt">
-                            <button class="bg-white text-black font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition-colors z-10 relative">Parcourir</button>
-                        </div>
-                        
-                        <div class="glass-panel p-6 hidden" id="scan-tools">
-                            <button id="resetBtn" class="w-full py-3 rounded-xl bg-panel hover:bg-gray-800 text-white font-bold transition-colors border border-white/5 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-rotate-right"></i> Nouvelle Analyse
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Zone Résultats -->
-                    <div class="xl:col-span-3">
-                        <div id="empty-state" class="h-full min-h-[400px] glass-panel flex flex-col items-center justify-center text-gray-500">
-                            <i class="fa-solid fa-radar fa-3x mb-4 opacity-20"></i>
-                            <p class="font-medium text-lg">En attente de données...</p>
-                        </div>
-
-                        <div id="resultsArea" class="hidden h-full">
-                            <div class="glass-panel p-8 h-full relative overflow-hidden">
-                                <div class="absolute -right-20 -top-20 w-64 h-64 bg-twitch/10 rounded-full blur-3xl"></div>
-                                <h3 class="text-2xl font-black mb-8 flex items-center gap-3">
-                                    <i class="fa-solid fa-trophy text-amber-400"></i> Podium de la Session
-                                </h3>
-                                
-                                <!-- Podium 3D Style -->
-                                <div class="flex items-end justify-center gap-4 h-64 mb-12" id="podiumContainer"></div>
-                                
-                                <h3 class="text-lg font-bold mb-4 text-gray-400">Classement de l'escouade</h3>
-                                <div class="space-y-3" id="listContainer"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- VUE 3 : SCANNEUR -->
+        <div id="view-scanner" class="fade-in hidden">
+            <div class="glass-panel p-12 text-center border-2 border-dashed border-gray-700 hover:border-twitch cursor-pointer transition-all" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                <i class="fa-solid fa-file-lines text-5xl text-twitch mb-4"></i>
+                <h3 class="text-2xl font-black mb-2">Glisse ton fichier .txt ici</h3>
+                <input type="file" id="fileInput" class="hidden" accept=".txt">
             </div>
-
+            <div id="resultsArea" class="hidden mt-8 grid grid-cols-2 gap-8">
+                <div class="glass-panel p-6"><h3 class="text-xl font-bold mb-6 text-twitch">Top 10 de la Session</h3><div id="scan-podium" class="space-y-4"></div></div>
+                <div class="glass-panel p-6"><h3 class="text-xl font-bold mb-6 text-gray-400">Reste de l'équipe</h3><div id="scan-list" class="space-y-2"></div></div>
+            </div>
         </div>
     </main>
 
-    <!-- ============================================== -->
-    <!-- MOTEUR JAVASCRIPT (L'ÂME DE L'APP)             -->
-    <!-- ============================================== -->
-    <script>
-        // HORLOGE LIVE
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('live-clock').innerText = now.toLocaleTimeString('fr-FR', {hour12: false});
-        }, 1000);
+    <!-- MODAL DOSSIER RH COMPLET (Reproduction de ton Excel) -->
+    <div id="dossier-modal" class="fixed inset-0 bg-black/95 z-50 hidden overflow-y-auto backdrop-blur-sm p-10">
+        <div class="max-w-6xl mx-auto">
+            <button onclick="closeDossier()" class="mb-6 text-gray-400 hover:text-white flex items-center gap-2 font-bold text-lg"><i class="fa-solid fa-arrow-left"></i> Retour au Roster</button>
+            <div id="dossier-content" class="space-y-6 fade-in">
+                <!-- Injecté par JS -->
+            </div>
+        </div>
+    </div>
 
-        // NAVIGATION FLUIDE
+    <script>
         function switchTab(tabId) {
-            ['dashboard', 'roster', 'scanner'].forEach(t => {
-                document.getElementById('view-' + t).classList.add('hidden');
-                document.getElementById('tab-' + t).classList.remove('active');
-            });
-            document.getElementById('view-' + tabId).classList.remove('hidden');
-            document.getElementById('tab-' + tabId).classList.add('active');
-            
-            const titles = { 'dashboard': 'Dashboard HQ', 'roster': 'Roster & Profils', 'scanner': 'Scanneur Temps Réel' };
+            ['dashboard', 'roster', 'scanner'].forEach(t => { document.getElementById('view-' + t).classList.add('hidden'); document.getElementById('tab-' + t).classList.remove('active'); });
+            document.getElementById('view-' + tabId).classList.remove('hidden'); document.getElementById('tab-' + tabId).classList.add('active');
+            const titles = { 'dashboard': 'Dashboard Global', 'roster': 'Dossiers RH Modérateurs', 'scanner': 'Analyse Temps Réel (.txt)' };
             document.getElementById('page-title').innerText = titles[tabId];
         }
 
-        // VARIABLES GLOBALES & MOTEUR DONNÉES
         let baseData = [];
-        const colorMap = {"👑 Top Modo": "#10b981", "⭐ Actif": "#f59e0b", "🔎 En observation": "#3b82f6", "⚠️ Fantôme": "#ef4444"};
-        const badgeMap = {"👑 Top Modo": "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", "⭐ Actif": "bg-amber-500/10 text-amber-500 border-amber-500/20", "🔎 En observation": "bg-blue-500/10 text-blue-500 border-blue-500/20", "⚠️ Fantôme": "bg-red-500/10 text-red-500 border-red-500/20"};
+        const colorMap = {"👑 Top Modo": "#10b981", "⭐ Modo Actif": "#f59e0b", "🔎 En observation": "#3b82f6", "⚠️ Danger fantôme": "#ef4444"};
 
         async function initSystem() {
             try {
-                document.getElementById('db-status').innerText = "Connexion Excel...";
                 const res = await fetch('./suivi.xlsx');
-                if(!res.ok) throw new Error("suivi.xlsx non trouvé");
+                if(!res.ok) throw new Error();
                 const buf = await res.arrayBuffer();
-                
                 const wb = XLSX.read(buf, {type: 'array'});
-                let sheet = wb.SheetNames[0];
-                wb.SheetNames.forEach(n => { if(n.includes("Feuille") || n.includes("Base")) sheet = n; });
+                let sheet = wb.SheetNames.find(n => n.includes("Feuille") || n.includes("Base")) || wb.SheetNames[0];
+                const rawJson = XLSX.utils.sheet_to_json(wb.Sheets[sheet], {defval: null});
                 
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[sheet], {defval: 0});
-                
-                baseData = json.filter(r => r["Nom du Modérateur"] && r["Nom du Modérateur"] !== 0).map(r => {
-                    let bcp = r['Total Active beaucoup'] || 0, peu = r['Total Active un peu'] || 0, abs = r['Total Pas là'] || 0;
+                baseData = rawJson.filter(r => r["Nom du Modérateur"]).map(r => {
+                    let bcp = r['Total Active beaucoup'] || 0, peu = r['Total Active un peu'] || 0;
+                    let abs = r['Total Pas là'] || 0, absJust = r['Total Absence justifiée'] || 0;
+                    let sessionsPlus = bcp + peu;
+                    let totalJours = sessionsPlus + abs + absJust;
+                    let assiduite = (totalJours - absJust) > 0 ? (sessionsPlus / (totalJours - absJust)) * 100 : 0;
                     let score = (bcp * 3) + (peu * 1) + (abs * -1);
-                    let grade = score >= 5 ? "👑 Top Modo" : (score >= 3 ? "⭐ Actif" : (score >= 1 ? "🔎 En observation" : "⚠️ Fantôme"));
-                    return { nom: r["Nom du Modérateur"], bcp, peu, abs, score, grade };
+                    let grade = score >= 5 ? "👑 Top Modo" : (score >= 3 ? "⭐ Modo Actif" : (score >= 1 ? "🔎 En observation" : "⚠️ Danger fantôme"));
+                    
+                    // Extraction de l'historique exact des jours (Jour 12, Jour 13, etc.)
+                    let joursHistorique = [];
+                    Object.keys(r).forEach(key => {
+                        if(key.toLowerCase().includes('jour') && r[key] !== null) {
+                            joursHistorique.push({ date: key, status: r[key] });
+                        }
+                    });
+
+                    return { nom: r["Nom du Modérateur"], bcp, peu, abs, absJust, score, grade, assiduite, joursHistorique, raw: r };
                 }).sort((a, b) => b.score - a.score);
 
-                document.getElementById('db-status').innerText = "Excel synchronisé";
-                document.getElementById('db-status').classList.replace('text-gray-500', 'text-emerald-500');
-                
-                buildDashboardCharts();
-                buildRosterCards();
-            } catch (err) {
-                document.getElementById('db-status').innerText = "Base introuvable";
-                document.getElementById('db-status').classList.replace('text-gray-500', 'text-red-500');
-            }
+                buildDashboard();
+                buildRosterCards("");
+            } catch (err) { document.getElementById('db-status').innerText = "Erreur lecture Excel"; document.getElementById('db-status').classList.replace('text-emerald-500', 'text-red-500'); }
         }
 
-        // MOTEUR APEXCHARTS (GRAPHES PROS)
-        function buildDashboardCharts() {
-            // Stats
+        function buildDashboard() {
             document.getElementById('stat-effectif').innerText = baseData.length;
-            document.getElementById('stat-top').innerText = baseData.filter(m => m.grade.includes("Top")).length;
-            document.getElementById('stat-fantomes').innerText = baseData.filter(m => m.grade.includes("Fantôme")).length;
-            const avg = baseData.reduce((a, b) => a + b.score, 0) / (baseData.length || 1);
-            document.getElementById('stat-moyenne').innerText = avg.toFixed(1);
+            document.getElementById('stat-fantomes').innerText = baseData.filter(m => m.grade.includes("Danger")).length;
+            document.getElementById('stat-assiduite').innerText = (baseData.reduce((a,b)=>a+b.assiduite,0)/baseData.length || 0).toFixed(1) + "%";
+            document.getElementById('stat-moyenne').innerText = (baseData.reduce((a,b)=>a+b.score,0)/baseData.length || 0).toFixed(1);
 
-            // Graphe Ligne/Aire (Scores Top 15)
-            const top15 = baseData.slice(0, 15);
             new ApexCharts(document.querySelector("#chart-scores"), {
-                series: [{ name: 'Score Global', data: top15.map(d => d.score) }],
-                chart: { type: 'area', height: 300, toolbar: { show: false }, background: 'transparent' },
+                series: [{ name: 'Score Global', data: baseData.slice(0, 15).map(d => d.score) }],
+                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent' },
                 colors: ['#9146FF'],
-                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.1, stops: [0, 90, 100] } },
-                dataLabels: { enabled: false },
-                stroke: { curve: 'smooth', width: 3 },
-                xaxis: { categories: top15.map(d => d.nom), labels: { style: { colors: '#9ca3af' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                plotOptions: { bar: { borderRadius: 4, distributed: true } },
+                dataLabels: { enabled: true, style: { colors: ['#fff'] } },
+                xaxis: { categories: baseData.slice(0, 15).map(d => d.nom), labels: { style: { colors: '#9ca3af' } } },
                 yaxis: { labels: { style: { colors: '#9ca3af' } } },
-                grid: { borderColor: 'rgba(255,255,255,0.05)', strokeDashArray: 4 },
-                theme: { mode: 'dark' }
+                theme: { mode: 'dark' }, legend: {show: false}
             }).render();
 
-            // Graphe Jauge Radiale (Santé)
-            const nbActifs = baseData.filter(m => m.grade.includes("Top") || m.grade.includes("Actif")).length;
-            const healthPct = Math.round((nbActifs / (baseData.length || 1)) * 100);
-            
+            const grades = {"👑 Top Modo":0, "⭐ Modo Actif":0, "🔎 En observation":0, "⚠️️ Danger fantôme":0};
+            baseData.forEach(m => { if(grades[m.grade]!==undefined) grades[m.grade]++; });
             new ApexCharts(document.querySelector("#chart-health"), {
-                series: [healthPct],
-                chart: { type: 'radialBar', height: 320, background: 'transparent' },
-                plotOptions: {
-                    radialBar: {
-                        startAngle: -135, endAngle: 135,
-                        hollow: { size: '60%', background: 'transparent' },
-                        track: { background: 'rgba(255,255,255,0.05)', strokeWidth: '100%' },
-                        dataLabels: { name: { offsetY: -10, color: '#9ca3af', fontSize: '14px' }, value: { color: '#fff', fontSize: '36px', fontWeight: 'black', show: true } }
-                    }
-                },
-                fill: { type: 'gradient', gradient: { shade: 'dark', type: 'horizontal', gradientToColors: ['#10b981'], stops: [0, 100] } },
-                stroke: { lineCap: 'round' },
-                colors: ['#9146FF'],
-                labels: ['Modos Opérationnels']
+                series: Object.values(grades), labels: Object.keys(grades),
+                chart: { type: 'donut', height: 300, background: 'transparent' },
+                colors: Object.keys(grades).map(k => colorMap[k]),
+                stroke: { show: false }, theme: { mode: 'dark' }, dataLabels: { dropShadow: { enabled: false } }
             }).render();
         }
 
-        // MOTEUR ROSTER (CARTES DES MODOS)
-        function buildRosterCards(filter = "") {
+        function buildRosterCards(filter) {
             const container = document.getElementById('roster-grid');
             container.innerHTML = "";
-            
             baseData.filter(m => m.nom.toLowerCase().includes(filter.toLowerCase())).forEach(m => {
-                const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${m.nom}&backgroundColor=18181b`;
-                const bStyle = badgeMap[m.grade];
-                
+                let badgeColor = m.grade.includes("Top") ? "bg-emerald-500/20 text-emerald-400 border-emerald-500" : (m.grade.includes("Danger") ? "bg-red-500/20 text-red-400 border-red-500" : "bg-panel text-gray-300 border-gray-600");
                 container.innerHTML += `
-                    <div class="glass-panel p-6 hover-glow transition-all flex flex-col group">
-                        <div class="flex items-start justify-between mb-4">
-                            <img src="${avatar}" class="w-16 h-16 rounded-2xl bg-dark shadow-lg border border-white/10 group-hover:scale-110 transition-transform">
-                            <div class="px-3 py-1 rounded-full border text-xs font-bold ${bStyle}">${m.grade}</div>
+                    <div onclick="openDossier('${m.nom}')" class="glass-panel p-6 cursor-pointer hover:border-twitch hover:shadow-[0_0_20px_rgba(145,70,255,0.2)] transition-all flex items-center gap-4 group">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${m.nom}&backgroundColor=18181b" class="w-16 h-16 rounded-full border-2 border-gray-700 group-hover:border-twitch transition-colors">
+                        <div class="flex-1">
+                            <h3 class="font-black text-lg text-white">${m.nom}</h3>
+                            <span class="text-xs font-bold px-2 py-1 rounded border ${badgeColor}">${m.grade}</span>
                         </div>
-                        <h3 class="text-xl font-black text-white mb-1">${m.nom}</h3>
-                        <p class="text-twitch font-bold mb-4">${m.score} Points d'évaluation</p>
-                        <div class="grid grid-cols-3 gap-2 mt-auto border-t border-white/5 pt-4">
-                            <div class="text-center"><p class="text-xs text-gray-500 mb-1">Fort</p><p class="font-bold text-emerald-400">${m.bcp}</p></div>
-                            <div class="text-center border-x border-white/5"><p class="text-xs text-gray-500 mb-1">Léger</p><p class="font-bold text-amber-400">${m.peu}</p></div>
-                            <div class="text-center"><p class="text-xs text-gray-500 mb-1">Abs</p><p class="font-bold text-red-400">${m.abs}</p></div>
+                        <div class="text-right">
+                            <div class="text-2xl font-black text-twitch">${m.score}</div><div class="text-xs text-gray-500">Score</div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         }
         function filterRoster() { buildRosterCards(document.getElementById('search-input').value); }
 
-        // MOTEUR SCANNEUR TXT ET CONFETTIS
-        const dropzone = document.getElementById('dropzone'), fileInput = document.getElementById('fileInput');
-        dropzone.addEventListener('click', () => fileInput.click());
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-twitch', 'bg-panelHover'); });
-        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-twitch', 'bg-panelHover'));
-        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('border-twitch', 'bg-panelHover'); if(e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]); });
-        fileInput.addEventListener('change', (e) => { if(e.target.files.length) processFile(e.target.files[0]); });
-        
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            document.getElementById('resultsArea').classList.add('hidden');
-            document.getElementById('scan-tools').classList.add('hidden');
-            document.getElementById('empty-state').classList.remove('hidden');
-            dropzone.classList.remove('hidden'); fileInput.value = "";
-        });
+        function openDossier(nom) {
+            const m = baseData.find(d => d.nom === nom);
+            const modal = document.getElementById('dossier-modal');
+            const content = document.getElementById('dossier-content');
+            
+            // Calcul Cible Hebdo (Similaire à ton Excel)
+            const actionsSimulees = (m.bcp * 25) + (m.peu * 8);
+            const cible = 200;
+            const txAtteinte = Math.min((actionsSimulees / cible) * 100, 100);
+            let objectifHTML = txAtteinte >= 80 ? `<span class="text-emerald-400"><i class="fa-solid fa-check-circle"></i> Objectif validé</span>` : (txAtteinte >= 40 ? `<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation"></i> Rythme modéré</span>` : `<span class="text-red-400"><i class="fa-solid fa-skull"></i> Sous-performance</span>`);
 
-        function triggerConfetti() {
-            var duration = 3000; var end = Date.now() + duration;
-            (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#9146FF', '#ffffff', '#10b981'] });
-                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#9146FF', '#ffffff', '#10b981'] });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            }());
+            // Historique HTML
+            let histHTML = "";
+            m.joursHistorique.forEach(j => {
+                let badge = j.status === "Active beaucoup" ? "bg-emerald-500/20 text-emerald-400" : (j.status === "Active un peu" ? "bg-amber-500/20 text-amber-400" : (j.status === "Pas là" ? "bg-red-500/20 text-red-400" : "bg-gray-700 text-gray-300"));
+                histHTML += `<div class="flex justify-between items-center p-3 border-b border-white/5"><span class="font-medium text-gray-400">${j.date}</span><span class="px-3 py-1 text-sm font-bold rounded-lg ${badge}">${j.status || "N/A"}</span></div>`;
+            });
+
+            content.innerHTML = `
+                <!-- HEADER PROFIL -->
+                <div class="glass-panel p-8 flex items-center gap-8 border-l-8" style="border-color: ${colorMap[m.grade]}">
+                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${m.nom}&backgroundColor=18181b" class="w-32 h-32 rounded-2xl shadow-xl border border-white/10">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h1 class="text-5xl font-black text-white mb-2">${m.nom}</h1>
+                                <span class="px-4 py-1 text-lg font-bold rounded-full border bg-dark text-white" style="border-color: ${colorMap[m.grade]}">${m.grade}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-gray-400 font-bold uppercase tracking-widest text-sm mb-1">Score Global</p>
+                                <p class="text-6xl font-black text-twitch">${m.score}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- REPARTITION EXACTE -->
+                    <div class="glass-panel p-8">
+                        <h3 class="text-xl font-bold mb-6 text-white border-b border-white/10 pb-4">Répartition Détaillée des Sessions</h3>
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-dark p-4 rounded-xl border border-[#10b981]/30"><p class="text-sm text-gray-400 mb-1">🟢 Active Beaucoup</p><p class="text-3xl font-black text-[#10b981]">${m.bcp}</p></div>
+                            <div class="bg-dark p-4 rounded-xl border border-[#f59e0b]/30"><p class="text-sm text-gray-400 mb-1">🟡 Active un peu</p><p class="text-3xl font-black text-[#f59e0b]">${m.peu}</p></div>
+                            <div class="bg-dark p-4 rounded-xl border border-gray-600"><p class="text-sm text-gray-400 mb-1">⚪ Abs. Justifiée</p><p class="text-3xl font-black text-gray-300">${m.absJust}</p></div>
+                            <div class="bg-dark p-4 rounded-xl border border-[#ef4444]/30"><p class="text-sm text-gray-400 mb-1">🔴 Pas là (Injustifié)</p><p class="text-3xl font-black text-[#ef4444]">${m.abs}</p></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-2"><span class="text-gray-400">Jauge d'Assiduité Globale</span><span class="text-white">${m.assiduite.toFixed(1)}%</span></div>
+                            <div class="w-full h-3 bg-dark rounded-full overflow-hidden"><div class="h-full bg-twitch" style="width: ${m.assiduite}%"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- OBJECTIFS ET HISTORIQUE -->
+                    <div class="space-y-6">
+                        <!-- OBJECTIF CIBLE -->
+                        <div class="glass-panel p-8">
+                            <h3 class="text-xl font-bold mb-4 text-white border-b border-white/10 pb-4">Objectifs & Cible Hebdo</h3>
+                            <div class="flex justify-between items-end mb-4">
+                                <div><p class="text-gray-400 text-sm">Actions Hebdomadaires Estimées</p><p class="text-3xl font-black text-white">${actionsSimulees} <span class="text-lg text-gray-500 font-normal">/ ${cible} cible</span></p></div>
+                                <div class="font-bold text-lg">${objectifHTML}</div>
+                            </div>
+                            <div class="w-full h-4 bg-dark rounded-full overflow-hidden border border-white/5"><div class="h-full ${txAtteinte >= 80 ? 'bg-emerald-500' : (txAtteinte >= 40 ? 'bg-amber-500' : 'bg-red-500')}" style="width: ${txAtteinte}%"></div></div>
+                        </div>
+
+                        <!-- HISTORIQUE JOUR PAR JOUR -->
+                        <div class="glass-panel p-8 max-h-64 overflow-y-auto">
+                            <h3 class="text-xl font-bold mb-4 text-white sticky top-0 bg-[#18181b]/90 backdrop-blur pb-2">Historique par Jour</h3>
+                            ${histHTML || "<p class="text-gray-500 italic">Aucun historique détaillé disponible.</p>"}
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
         }
+        function closeDossier() { document.getElementById('dossier-modal').classList.add('hidden'); }
 
-        function processFile(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const text = e.target.result;
+        // MOTEUR TXT
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if(!e.target.files.length) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                const text = ev.target.result;
                 const counts = {};
                 const kw = ['Message supprimé', 'Avertissement', 'Banni', 'Ajouté', 'Supprimé', 'Retiré', 'Activé'];
-                
                 text.split('\n').forEach(line => {
                     if(kw.some(k => line.includes(k))) {
                         const m = line.match(/ par ([\w_]+)/);
                         if(m && !['wizebot', 'erreur'].includes(m[1].toLowerCase())) counts[m[1]] = (counts[m[1]] || 0) + 1;
                     }
                 });
-
-                const sortedMods = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-                
-                dropzone.classList.add('hidden');
-                document.getElementById('empty-state').classList.add('hidden');
+                const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+                document.getElementById('dropzone').classList.add('hidden');
                 document.getElementById('resultsArea').classList.remove('hidden');
-                document.getElementById('scan-tools').classList.remove('hidden');
                 
-                // Le feu d'artifice !
-                triggerConfetti();
-                
-                const podiumContainer = document.getElementById('podiumContainer');
-                podiumContainer.innerHTML = '';
-                const maxScore = sortedMods[0] ? sortedMods[0][1] : 1;
-                
-                // Podium 3D (2, 1, 3)
-                const top3 = [sortedMods[1], sortedMods[0], sortedMods[2]]; 
-                const styles = [
-                    { h: 'h-32', c: 'from-gray-600 to-gray-800', border: 'border-gray-500', txt: 'text-gray-300', num: 2 },
-                    { h: 'h-48', c: 'from-twitch to-purple-900', border: 'border-twitch', txt: 'text-white', num: 1 },
-                    { h: 'h-24', c: 'from-amber-700 to-amber-900', border: 'border-amber-600', txt: 'text-amber-300', num: 3 }
-                ];
-
-                top3.forEach((m, idx) => {
-                    if(m) {
-                        const s = styles[idx];
-                        const av = `https://api.dicebear.com/7.x/bottts/svg?seed=${m[0]}&backgroundColor=18181b`;
-                        podiumContainer.innerHTML += `
-                            <div class="flex flex-col items-center flex-1 fade-in" style="animation-delay: ${idx*0.2}s">
-                                <img src="${av}" class="w-16 h-16 rounded-xl border-2 ${s.border} bg-dark shadow-[0_0_15px_rgba(0,0,0,0.5)] mb-3 z-10">
-                                <div class="font-black text-lg text-white mb-1 text-center truncate w-full px-2">${m[0]}</div>
-                                <div class="${s.txt} font-bold text-sm mb-3">${m[1]} actions</div>
-                                <div class="w-full ${s.h} bg-gradient-to-t ${s.c} border-t-2 border-l-2 border-r-2 ${s.border} rounded-t-2xl flex justify-center pt-4 relative overflow-hidden shadow-2xl">
-                                    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-                                    <span class="text-6xl font-black text-black/20">${s.num}</span>
-                                </div>
-                            </div>
-                        `;
-                    } else { podiumContainer.innerHTML += `<div class="flex-1"></div>`; }
+                const podium = document.getElementById('scan-podium'); podium.innerHTML = "";
+                sorted.slice(0,10).forEach((m, i) => {
+                    podium.innerHTML += `<div class="flex items-center justify-between p-3 bg-dark rounded-lg border border-white/5"><div class="flex items-center gap-3"><span class="w-6 text-center font-black text-gray-500">${i+1}</span><span class="font-bold text-white">${m[0]}</span></div><span class="text-twitch font-black">${m[1]}</span></div>`;
                 });
-
-                // Liste du reste
-                const listContainer = document.getElementById('listContainer');
-                listContainer.innerHTML = '';
-                if(sortedMods.length > 3) {
-                    sortedMods.slice(3).forEach((m, idx) => {
-                        const pct = (m[1] / maxScore) * 100;
-                        listContainer.innerHTML += `
-                            <div class="flex items-center gap-4 p-4 glass-panel hover:bg-white/5 transition-colors">
-                                <span class="font-black text-gray-600 w-6 text-right">#${idx + 4}</span>
-                                <div class="flex-1">
-                                    <div class="flex justify-between mb-1">
-                                        <span class="font-bold text-white">${m[0]}</span>
-                                        <span class="text-twitch font-bold">${m[1]}</span>
-                                    </div>
-                                    <div class="w-full bg-dark rounded-full h-1.5 overflow-hidden">
-                                        <div class="bg-twitch h-1.5 rounded-full" style="width: ${pct}%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
+                
+                const list = document.getElementById('scan-list'); list.innerHTML = "";
+                sorted.slice(10).forEach(m => {
+                    list.innerHTML += `<div class="flex justify-between border-b border-gray-800 py-2"><span class="text-gray-300">${m[0]}</span><span class="text-gray-500">${m[1]}</span></div>`;
+                });
             };
-            reader.readAsText(file);
-        }
+            r.readAsText(e.target.files[0]);
+        });
     </script>
 </body>
 </html>
