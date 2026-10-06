@@ -1,99 +1,163 @@
 import streamlit as st
 import pandas as pd
-import re
-from collections import Counter
 import plotly.express as px
+import plotly.graph_objects as go
+import re
+import os
+from collections import Counter
 
-# 1. Configuration de la page (Mode Large pour un vrai Dashboard)
-st.set_page_config(page_title="QG Modération", page_icon="🛡️", layout="wide")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="QG Modération Ultime", page_icon="👑", layout="wide")
 
-# 2. Sécurité
 PASSWORD = "modo"
 mot_de_passe = st.sidebar.text_input("🔐 Mot de passe :", type="password")
 
 if mot_de_passe != PASSWORD:
-    st.sidebar.warning("Veuillez entrer le mot de passe pour accéder à l'outil.")
+    st.sidebar.warning("Veuillez entrer le mot de passe pour accéder au QG.")
     st.stop()
 
-# 3. Barre latérale (Sidebar) pour les imports
 st.sidebar.markdown("---")
-st.sidebar.header("📁 Import des Données")
-fichier_excel = st.sidebar.file_uploader("1. Ton Historique (.xlsx)", type=["xlsx"])
-fichier_txt = st.sidebar.file_uploader("2. Journal du Jour (.txt)", type=["txt"])
+st.sidebar.markdown("### 🤖 Analyse Quotidienne")
+fichier_txt = st.sidebar.file_uploader("Glisse le .txt du jour ici", type=["txt"])
 
-st.title("🛡️ QG Modération - Tableau de Bord")
+# --- CHARGEMENT AUTO DE L'EXCEL ---
+FICHIER_EXCEL = "suivi.xlsx"
 
-# 4. Création des Onglets pour naviguer
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard Global", "🔥 Analyse du Jour", "🔎 Fiche Modérateur"])
+@st.cache_data
+def charger_donnees():
+    if os.path.exists(FICHIER_EXCEL):
+        return pd.read_excel(FICHIER_EXCEL)
+    return None
 
-df_historique = None
-if fichier_excel:
-    try:
-        df_historique = pd.read_excel(fichier_excel)
-    except Exception as e:
-        st.error(f"Erreur de lecture de l'Excel : {e}")
+df = charger_donnees()
 
-# ONGLET 1 : Les stats de l'Excel
+# --- INTERFACE PRINCIPALE ---
+st.title("👑 QG Modération - Direction")
+
+if df is None:
+    st.error("⚠️ Fichier 'suivi.xlsx' introuvable sur le GitHub. Pense à l'importer en cliquant sur 'Add file' > 'Upload files' sur GitHub !")
+    st.stop()
+
+# Nettoyage et préparation des données
+col_nom = next((col for col in df.columns if "Nom" in str(col)), df.columns[0])
+col_score = next((col for col in df.columns if "Score" in str(col)), None)
+col_bcp = next((c for c in df.columns if "beaucoup" in str(c).lower()), None)
+col_peu = next((c for c in df.columns if "peu" in str(c).lower()), None)
+col_pas = next((c for c in df.columns if "pas l" in str(c).lower()), None)
+
+# Création des onglets
+tab1, tab2, tab3, tab4 = st.tabs(["🏆 Mur des Légendes", "📈 Statistiques & Graphiques", "🔎 Profil 360°", "⚡ Scan du Jour (.txt)"])
+
+# ----------------------------------------
+# ONGLET 1 : MUR DES LÉGENDES (Leaderboard)
+# ----------------------------------------
 with tab1:
-    if df_historique is not None:
-        st.header("Vue d'ensemble de l'équipe")
+    st.subheader("Bilan de l'Équipe")
+    
+    if col_score:
+        df_top = df.sort_values(by=col_score, ascending=False).dropna(subset=[col_score])
         
-        # Recherche flexible de la colonne Score (anti-crash)
-        col_score = next((col for col in df_historique.columns if "Score" in str(col)), None)
-        col_nom = next((col for col in df_historique.columns if "Nom" in str(col)), df_historique.columns[0])
+        # KPIs en haut
+        col1, col2, col3, col4 = st.columns(4)
+        top_1 = df_top.iloc[0][col_nom] if len(df_top) > 0 else "N/A"
+        top_2 = df_top.iloc[1][col_nom] if len(df_top) > 1 else "N/A"
+        effectif = len(df_top)
+        total_actions = df[col_bcp].sum() * 15 + df[col_peu].sum() * 5 if col_bcp else 0 # Estimation
         
-        if col_score:
-            df_top = df_historique.sort_values(by=col_score, ascending=False).dropna(subset=[col_score])
-            
-            # -- Ligne de KPIs (Chiffres clés animés) --
-            col1, col2, col3 = st.columns(3)
-            meilleur_modo = df_top.iloc[0][col_nom] if not df_top.empty else "N/A"
-            meilleur_score = df_top.iloc[0][col_score] if not df_top.empty else 0
-            effectif = len(df_historique[col_nom].dropna().unique())
-            
-            col1.metric(label="👑 Top Modérateur", value=str(meilleur_modo), delta=f"{meilleur_score} pts globaux")
-            col2.metric(label="👥 Effectif Total", value=f"{effectif} Modos enregistrés")
-            col3.metric(label="📈 État du système", value="100% Synchronisé")
-            
-            st.markdown("---")
-            
-            # -- Graphique 1 : Top 15 en Barres dynamiques --
-            colA, colB = st.columns([2, 1])
-            with colA:
-                st.subheader("🏆 Classement Général (Scores)")
-                fig_bar = px.bar(df_top.head(15), x=col_nom, y=col_score, 
-                                 text=col_score, color=col_score, 
-                                 color_continuous_scale='Purp', template="plotly_dark")
-                st.plotly_chart(fig_bar, use_container_width=True)
-            
-            # -- Graphique 2 : Répartition de l'effort --
-            with colB:
-                st.subheader("Effort Global")
-                # Recherche flexible des colonnes de totaux (anti-crash)
-                col_bcp = next((c for c in df_historique.columns if "beaucoup" in str(c).lower()), None)
-                col_peu = next((c for c in df_historique.columns if "peu" in str(c).lower()), None)
-                col_pas = next((c for c in df_historique.columns if "pas l" in str(c).lower()), None)
-                
-                tot_bcp = df_historique[col_bcp].sum() if col_bcp else 0
-                tot_peu = df_historique[col_peu].sum() if col_peu else 0
-                tot_pas = df_historique[col_pas].sum() if col_pas else 0
-                
-                if tot_bcp + tot_peu + tot_pas > 0:
-                    fig_pie = px.pie(names=["Hyper Actifs", "Activité Moyenne", "Absences"], 
-                                     values=[tot_bcp, tot_peu, tot_pas],
-                                     color_discrete_sequence=['#00b894', '#fdcb6e', '#d63031'],
-                                     hole=0.4)
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                else:
-                    st.info("Pas assez de données pour générer le graphique de répartition.")
-        else:
-            st.warning("⚠️ La colonne de Score n'a pas été trouvée. Assure-toi d'avoir une colonne 'Score Global' dans ton Excel.")
+        col1.metric("🥇 1er Modérateur", f"{top_1}")
+        col2.metric("🥈 2ème Modérateur", f"{top_2}")
+        col3.metric("👥 Effectif Actif", f"{effectif} Modos")
+        col4.metric("🔥 Estimation Actions", f"~{int(total_actions)}")
+        
+        st.markdown("---")
+        
+        # Heatmap (Tableau stylisé)
+        st.subheader("🗺️ Carte de chaleur des présences")
+        st.write("Plus la case est foncée, plus le score est élevé.")
+        
+        # On affiche le dataframe avec un dégradé de couleurs sur le score
+        df_display = df_top[[col_nom, col_score, col_bcp, col_peu, col_pas]].copy()
+        st.dataframe(df_display.style.background_gradient(subset=[col_score], cmap="Greens"), use_container_width=True)
     else:
-        st.info("👈 Importe ton fichier Excel de suivi à gauche pour afficher les graphiques globaux.")
+        st.warning("Ajoute une colonne 'Score Global' dans ton Excel pour voir le classement.")
 
-# ONGLET 2 : L'analyse en direct du .txt
+# ----------------------------------------
+# ONGLET 2 : STATISTIQUES AVANCÉES
+# ----------------------------------------
 with tab2:
-    if fichier_txt:
+    st.subheader("Analyse Visuelle de la Modération")
+    if col_score and col_bcp:
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            # Treemap : Vue proportionnelle de l'équipe
+            fig_tree = px.treemap(df_top.head(15), path=[px.Constant("Équipe"), col_nom], values=col_score,
+                                  color=col_score, color_continuous_scale='Purp',
+                                  title="Poids de chaque modérateur dans l'équipe (Top 15)")
+            fig_tree.update_layout(template="plotly_dark", margin=dict(t=50, l=25, r=25, b=25))
+            st.plotly_chart(fig_tree, use_container_width=True)
+            
+        with c2:
+            # Jauge globale d'absentéisme
+            tot_presences = df_top[col_bcp].sum() + df_top[col_peu].sum()
+            tot_absences = df_top[col_pas].sum()
+            tx_presence = (tot_presences / (tot_presences + tot_absences)) * 100 if (tot_presences + tot_absences) > 0 else 0
+            
+            fig_gauge = go.Figure(go.Indicator(
+                mode = "gauge+number",
+                value = tx_presence,
+                number = {'suffix': "%"},
+                title = {'text': "Taux de Présence Global"},
+                gauge = {'axis': {'range': [0, 100]},
+                         'bar': {'color': "#00b894"},
+                         'steps': [
+                             {'range': [0, 50], 'color': "#d63031"},
+                             {'range': [50, 80], 'color': "#fdcb6e"}],
+                         }
+            ))
+            fig_gauge.update_layout(template="plotly_dark", height=350)
+            st.plotly_chart(fig_gauge, use_container_width=True)
+
+# ----------------------------------------
+# ONGLET 3 : PROFIL 360° DU MODÉRATEUR
+# ----------------------------------------
+with tab3:
+    st.subheader("Dossier Individuel")
+    liste_modos = df[col_nom].dropna().unique().tolist()
+    modo_choisi = st.selectbox("Rechercher un modérateur :", ["-- Sélectionner --"] + sorted(liste_modos))
+    
+    if modo_choisi != "-- Sélectionner --":
+        stats_modo = df[df[col_nom] == modo_choisi].iloc[0]
+        
+        col_prof1, col_prof2 = st.columns([1, 2])
+        with col_prof1:
+            st.markdown(f"## 👤 {modo_choisi}")
+            score_actuel = stats_modo[col_score] if col_score else "N/A"
+            st.metric("Score Global", score_actuel)
+            
+            if col_bcp and col_peu and col_pas:
+                st.write(f"**🟢 Fortes activités :** {stats_modo[col_bcp]}")
+                st.write(f"**🟡 Faibles activités :** {stats_modo[col_peu]}")
+                st.write(f"**🔴 Absences :** {stats_modo[col_pas]}")
+                
+        with col_prof2:
+            if col_bcp and col_peu and col_pas:
+                # Graphique Radar des compétences
+                fig_radar = go.Figure(data=go.Scatterpolar(
+                  r=[stats_modo[col_bcp], stats_modo[col_peu], stats_modo[col_pas], stats_modo[col_bcp]],
+                  theta=['Implication Forte', 'Présence Légère', 'Absences', 'Fiabilité'],
+                  fill='toself',
+                  line_color='#a29bfe'
+                ))
+                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True)), showlegend=False, template="plotly_dark", title="Radar d'Activité")
+                st.plotly_chart(fig_radar, use_container_width=True)
+
+# ----------------------------------------
+# ONGLET 4 : LE SCANNEUR QUOTIDIEN (.txt)
+# ----------------------------------------
+with tab4:
+    st.subheader("Analyse du tchat en direct")
+    if fichier_txt is not None:
         content = fichier_txt.read().decode("utf-8")
         lines = content.split('\n')
         
@@ -109,8 +173,6 @@ with tab2:
                         mod_counts[mod] += 1
                         
         if mod_counts:
-            st.success("✅ Historique Twitch analysé en temps réel !")
-            
             data_jour = []
             for mod, count in mod_counts.most_common():
                 if count >= 10:
@@ -123,38 +185,10 @@ with tab2:
                 
             df_jour = pd.DataFrame(data_jour)
             
-            col_chart, col_table = st.columns([2, 1])
-            with col_chart:
-                st.subheader("Activité du Jour")
-                fig_jour = px.bar(df_jour.head(15), x='Modérateur', y='Actions', text='Actions', 
-                                  color='Actions', color_continuous_scale='Blues', template="plotly_dark")
-                st.plotly_chart(fig_jour, use_container_width=True)
-                
-            with col_table:
-                st.subheader("Résultats à copier")
-                st.dataframe(df_jour, use_container_width=True)
-                
-                csv = df_jour.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Télécharger en CSV", data=csv, file_name='stats_jour.csv', mime='text/csv')
-        else:
-            st.warning("Aucune action de modération trouvée dans ce fichier texte.")
-    else:
-        st.info("👈 Importe ton fichier .txt du jour à gauche pour voir les stats en direct.")
-
-# ONGLET 3 : Fiche Modérateur Interactive
-with tab3:
-    if df_historique is not None:
-        st.subheader("🔎 Profil détaillé")
-        col_nom = next((col for col in df_historique.columns if "Nom" in str(col)), df_historique.columns[0])
-        liste_modos = df_historique[col_nom].dropna().unique().tolist()
-        
-        modo_choisi = st.selectbox("Sélectionne un modérateur pour voir son dossier :", ["-- Choisir un profil --"] + liste_modos)
-        
-        if modo_choisi != "-- Choisir un profil --":
-            stats_modo = df_historique[df_historique[col_nom] == modo_choisi].iloc[0]
+            st.success("✅ Fichier journalier analysé avec succès !")
+            st.dataframe(df_jour, use_container_width=True)
             
-            # Affichage stylisé des infos du modérateur
-            st.markdown(f"### Dossier de : **{modo_choisi}**")
-            st.dataframe(pd.DataFrame(stats_modo.dropna()).T, use_container_width=True)
+            csv_jour = df_jour.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Télécharger ces stats pour mettre à jour l'Excel", data=csv_jour, file_name='nouveau_jour.csv', mime='text/csv')
     else:
-        st.info("👈 Importe ton fichier Excel à gauche pour pouvoir chercher un modérateur.")
+        st.info("👈 Glisse le fichier .txt du jour dans la barre latérale à gauche pour le faire analyser par l'IA.")
