@@ -6,168 +6,198 @@ import re
 import os
 from collections import Counter
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="QG Modération Ultime", page_icon="👑", layout="wide")
+# --- 1. CONFIGURATION DU SITE ---
+st.set_page_config(page_title="Cockpit Modération", page_icon="🛡️", layout="wide")
 
+# CSS personnalisé pour donner un look "Dashboard Excel"
+st.markdown("""
+    <style>
+    .stMetric { background-color: #1e1e1e; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-top: 3px solid #4a69bd; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #2d3436; border-radius: 5px 5px 0 0; padding: 10px 20px; }
+    .stTabs [aria-selected="true"] { background-color: #0984e3 !important; color: white !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 2. SÉCURITÉ ET IMPORT ---
 PASSWORD = "modo"
 mot_de_passe = st.sidebar.text_input("🔐 Mot de passe :", type="password")
 
 if mot_de_passe != PASSWORD:
-    st.sidebar.warning("Veuillez entrer le mot de passe pour accéder au QG.")
+    st.sidebar.warning("Veuillez entrer le mot de passe pour accéder au Cockpit.")
     st.stop()
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🤖 Analyse Quotidienne")
-fichier_txt = st.sidebar.file_uploader("Glisse le .txt du jour ici", type=["txt"])
+st.sidebar.header("📁 Outils Quotidiens")
+fichier_txt = st.sidebar.file_uploader("1. Scanneur du Jour (.txt)", type=["txt"])
+fichier_excel_secours = st.sidebar.file_uploader("2. Import manuel Excel (Secours)", type=["xlsx", "ods"])
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📁 Secours (Optionnel)")
-fichier_excel_secours = st.sidebar.file_uploader("Si le fichier automatique ne charge pas, glisse ton Excel ici", type=["xlsx", "ods"])
-
-# --- CHARGEMENT DE L'EXCEL (SANS CACHE POUR ÉVITER LES BUGS) ---
+# --- 3. CHARGEMENT ET CALCUL DES DONNÉES ---
 FICHIER_EXCEL = "suivi.xlsx"
 
 def charger_donnees():
-    # 1. On donne la priorité au fichier glissé manuellement si besoin
     if fichier_excel_secours is not None:
         return pd.read_excel(fichier_excel_secours)
-    # 2. Sinon on cherche le fichier automatique sur GitHub
     elif os.path.exists(FICHIER_EXCEL):
         return pd.read_excel(FICHIER_EXCEL)
-    # 3. Si aucun des deux, on renvoie une erreur
     return None
 
-df = charger_donnees()
+df_brut = charger_donnees()
 
-# --- INTERFACE PRINCIPALE ---
-st.title("👑 QG Modération - Direction")
-
-if df is None:
-    st.error("⚠️ Fichier 'suivi.xlsx' introuvable sur le GitHub. Tu peux utiliser la zone d'import 'Secours' dans le menu de gauche en attendant !")
+if df_brut is None:
+    st.error("⚠️ Fichier 'suivi.xlsx' introuvable. Importe-le via GitHub ou utilise la zone de secours à gauche.")
     st.stop()
 
-# Nettoyage et préparation des données
+# Nettoyage et Recalcul automatique (pour être sûr que ça marche même s'il manque des formules dans l'Excel)
+df = df_brut.copy()
 col_nom = next((col for col in df.columns if "Nom" in str(col)), df.columns[0])
-col_score = next((col for col in df.columns if "Score" in str(col)), None)
-col_bcp = next((c for c in df.columns if "beaucoup" in str(c).lower()), None)
-col_peu = next((c for c in df.columns if "peu" in str(c).lower()), None)
-col_pas = next((c for c in df.columns if "pas l" in str(c).lower()), None)
 
-# Création des onglets
-tab1, tab2, tab3, tab4 = st.tabs(["🏆 Mur des Légendes", "📈 Statistiques & Graphiques", "🔎 Profil 360°", "⚡ Scan du Jour (.txt)"])
+# On s'assure que les colonnes de base existent
+for col in ['Total Active beaucoup', 'Total Active un peu', 'Total Pas là', 'Total Absence justifiée']:
+    if col not in df.columns:
+        df[col] = 0
 
-# ----------------------------------------
-# ONGLET 1 : MUR DES LÉGENDES (Leaderboard)
-# ----------------------------------------
+df.fillna({col_nom: "Inconnu", 'Total Active beaucoup': 0, 'Total Active un peu': 0, 'Total Pas là': 0, 'Total Absence justifiée': 0}, inplace=True)
+
+# Calculs mathématiques (comme dans ton Excel)
+df['Sessions (+)'] = df['Total Active beaucoup'] + df['Total Active un peu']
+df['Total Jours'] = df['Sessions (+)'] + df['Total Pas là'] + df['Total Absence justifiée']
+df['Score Global'] = (df['Total Active beaucoup'] * 3) + (df['Total Active un peu'] * 1) + (df['Total Pas là'] * -1)
+df['Assiduité %'] = df.apply(lambda x: (x['Sessions (+)'] / (x['Total Jours'] - x['Total Absence justifiée'])) * 100 if (x['Total Jours'] - x['Total Absence justifiée']) > 0 else 0, axis=1)
+
+# Attribution des Grades Automatiques
+def get_grade(score):
+    if score >= 5: return "👑 Top Modo"
+    elif score >= 3: return "⭐ Modo Actif"
+    elif score >= 1: return "🔎 En observation"
+    else: return "⚠️ Danger fantôme"
+
+df['Grade'] = df['Score Global'].apply(get_grade)
+
+# Couleurs pour les graphiques
+color_map = {"👑 Top Modo": "#e17055", "⭐ Modo Actif": "#fdcb6e", "🔎 En observation": "#00b894", "⚠️ Danger fantôme": "#d63031"}
+
+# --- 4. AFFICHAGE DU COCKPIT ---
+st.markdown("<h1 style='text-align: center; color: #74b9ff;'>🛡️ COCKPIT DE PILOTAGE ET PERFORMANCE DES MODÉRATEURS</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #b2bec3;'>Suivi d'activité en temps réel • Analyse individuelle et collective</p>", unsafe_allow_html=True)
+
+tab1, tab2, tab3 = st.tabs(["🚀 Cockpit Interactif", "⚡ Analyseur .txt en direct", "💾 Base Excel Brut"])
+
 with tab1:
-    st.subheader("Bilan de l'Équipe")
+    # --- KPIs GLOBAUX ---
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     
-    if col_score:
-        df_top = df.sort_values(by=col_score, ascending=False).dropna(subset=[col_score])
+    effectif_tot = len(df)
+    assiduite_moy = df['Assiduité %'].mean()
+    modos_actifs = len(df[df['Grade'].isin(['👑 Top Modo', '⭐ Modo Actif'])])
+    alertes = len(df[df['Grade'] == '⚠️ Danger fantôme'])
+    score_moy = df['Score Global'].mean()
+    actions_estimees = int((df['Total Active beaucoup'].sum() * 15) + (df['Total Active un peu'].sum() * 5))
+    
+    c1.metric("👥 EFFECTIF TOTAL", f"{effectif_tot}", "Membres")
+    c2.metric("📉 ASSIDUITÉ MOYENNE", f"{assiduite_moy:.1f}%", "Sur la période")
+    c3.metric("⭐ MODOS ACTIFS", f"{modos_actifs}", "Top & Actifs")
+    c4.metric("⚠️ ALERTES FANTÔME", f"{alertes}", "- À surveiller", delta_color="inverse")
+    c5.metric("🎯 SCORE MOYEN", f"{score_moy:.1f}", "Points / modo")
+    c6.metric("⚡ ACTIONS ÉQUIPE", f"~{actions_estimees}", "Estimées")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- DEUX COLONNES PRINCIPALES ---
+    col_gauche, col_droite = st.columns([1, 2.5])
+    
+    # === COLONNE GAUCHE : PROFIL INDIVIDUEL ===
+    with col_gauche:
+        st.markdown("### 👤 PROFIL INDIVIDUEL")
+        liste_modos = df[col_nom].tolist()
+        modo_select = st.selectbox("Sélection :", liste_modos)
         
-        # KPIs en haut
-        col1, col2, col3, col4 = st.columns(4)
-        top_1 = df_top.iloc[0][col_nom] if len(df_top) > 0 else "N/A"
-        top_2 = df_top.iloc[1][col_nom] if len(df_top) > 1 else "N/A"
-        effectif = len(df_top)
-        total_actions = df[col_bcp].sum() * 15 + df[col_peu].sum() * 5 if col_bcp else 0 # Estimation
+        modo_data = df[df[col_nom] == modo_select].iloc[0]
         
-        col1.metric("🥇 1er Modérateur", f"{top_1}")
-        col2.metric("🥈 2ème Modérateur", f"{top_2}")
-        col3.metric("👥 Effectif Actif", f"{effectif} Modos")
-        col4.metric("🔥 Estimation Actions", f"~{int(total_actions)}")
+        st.write(f"**Grade actuel :** {modo_data['Grade']}")
+        st.write(f"**Score Global :** {modo_data['Score Global']} pts")
+        
+        st.markdown("**Jauge d'assiduité :**")
+        st.progress(min(int(modo_data['Assiduité %']), 100))
+        st.write(f"<div style='text-align: right;'><b>{modo_data['Assiduité %']:.1f}%</b></div>", unsafe_allow_html=True)
+        
+        # Répartition
+        st.markdown("📊 **Répartition des sessions**")
+        sc1, sc2, sc3 = st.columns(3)
+        sc1.metric("🟢 Bcp", modo_data['Total Active beaucoup'])
+        sc2.metric("🟡 Peu", modo_data['Total Active un peu'])
+        sc3.metric("🔴 Abs", modo_data['Total Pas là'])
         
         st.markdown("---")
+        st.markdown("🎯 **OBJECTIFS & CIBLE HEBDO**")
+        cible = 200
+        # Simulation d'actions selon les présences
+        actions_simulees = int((modo_data['Total Active beaucoup'] * 25) + (modo_data['Total Active un peu'] * 8))
+        taux_atteinte = min((actions_simulees / cible) * 100, 100)
         
-        # Heatmap (Tableau stylisé)
-        st.subheader("🗺️️ Carte de chaleur des présences")
-        st.write("Plus la case est foncée, plus le score est élevé.")
+        st.write(f"Cible : **{cible} actions** | Estimées : **{actions_simulees}**")
+        st.progress(int(taux_atteinte))
         
-        df_display = df_top[[col_nom, col_score, col_bcp, col_peu, col_pas]].copy()
-        st.dataframe(df_display.style.background_gradient(subset=[col_score], cmap="Greens"), use_container_width=True)
-    else:
-        st.warning("Ajoute une colonne 'Score Global' dans ton Excel pour voir le classement.")
+        if taux_atteinte >= 80:
+            st.success(f"Taux d'atteinte : {taux_atteinte:.1f}% - Objectif validé ✅")
+        elif taux_atteinte >= 40:
+            st.warning(f"Taux d'atteinte : {taux_atteinte:.1f}% - Rythme modéré ⚠️")
+        else:
+            st.error(f"Taux d'atteinte : {taux_atteinte:.1f}% - Sous-performance 🚨")
 
-# ----------------------------------------
-# ONGLET 2 : STATISTIQUES AVANCÉES
-# ----------------------------------------
+    # === COLONNE DROITE : VUE DYNAMIQUE & GRAPHIQUE ===
+    with col_droite:
+        st.markdown("### ⚡ VUE DYNAMIQUE DE L'ÉQUIPE")
+        
+        # Filtre
+        filtre_grade = st.selectbox("Filtre par Grade :", ["TOUS", "👑 Top Modo", "⭐ Modo Actif", "🔎 En observation", "⚠️ Danger fantôme"])
+        
+        df_filtre = df.copy()
+        if filtre_grade != "TOUS":
+            df_filtre = df_filtre[df_filtre['Grade'] == filtre_grade]
+            
+        # Formatage du tableau pour l'affichage
+        df_affichage = df_filtre[[col_nom, 'Grade', 'Score Global', 'Assiduité %', 'Sessions (+)']].copy()
+        df_affichage['Assiduité %'] = df_affichage['Assiduité %'].apply(lambda x: f"{x:.1f}%")
+        df_affichage = df_affichage.sort_values(by='Score Global', ascending=False)
+        
+        # Disposition Tableau / Donut
+        ctab, cchart = st.columns([1.5, 1])
+        
+        with ctab:
+            st.dataframe(df_affichage, use_container_width=True, height=400)
+            
+        with cchart:
+            # Répartition par grade (Donut Chart)
+            repartition = df['Grade'].value_counts().reset_index()
+            repartition.columns = ['Grade', 'Effectif']
+            
+            fig_pie = px.pie(repartition, values='Effectif', names='Grade', 
+                             color='Grade', color_discrete_map=color_map,
+                             hole=0.5, title="Répartition par Grade")
+            fig_pie.update_traces(textposition='inside', textinfo='percent+value')
+            fig_pie.update_layout(template="plotly_dark", showlegend=True, legend=dict(orientation="h", y=-0.2))
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        # Synthèse RH en bas
+        st.markdown("### 📋 SYNTHÈSE OPÉRATIONNELLE & RH")
+        top_membres = ", ".join(df[df['Grade'] == '👑 Top Modo'][col_nom].tolist()[:5])
+        st.success(f"**👑 Pôle Top Modos ({len(df[df['Grade'] == '👑 Top Modo'])} membres) :** {top_membres}...")
+        st.info("Action RH : Valorisation et maintien prioritaire des droits de modération.")
+        
+        danger_membres = ", ".join(df[df['Grade'] == '⚠️ Danger fantôme'][col_nom].tolist()[:5])
+        st.error(f"**⚠️ Pôle Fantôme ({len(df[df['Grade'] == '⚠️ Danger fantôme'])} membres) :** {danger_membres}...")
+        st.info("Action RH : Avertissement, vérification des absences, rétrogradation possible.")
+
+# --- ONGLET 2 : LE SCANNEUR TXT ---
 with tab2:
-    st.subheader("Analyse Visuelle de la Modération")
-    if col_score and col_bcp:
-        c1, c2 = st.columns(2)
-        
-        with c1:
-            fig_tree = px.treemap(df_top.head(15), path=[px.Constant("Équipe"), col_nom], values=col_score,
-                                  color=col_score, color_continuous_scale='Purp',
-                                  title="Poids de chaque modérateur dans l'équipe (Top 15)")
-            fig_tree.update_layout(template="plotly_dark", margin=dict(t=50, l=25, r=25, b=25))
-            st.plotly_chart(fig_tree, use_container_width=True)
-            
-        with c2:
-            tot_presences = df_top[col_bcp].sum() + df_top[col_peu].sum()
-            tot_absences = df_top[col_pas].sum()
-            tx_presence = (tot_presences / (tot_presences + tot_absences)) * 100 if (tot_presences + tot_absences) > 0 else 0
-            
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = tx_presence,
-                number = {'suffix': "%"},
-                title = {'text': "Taux de Présence Global"},
-                gauge = {'axis': {'range': [0, 100]},
-                         'bar': {'color': "#00b894"},
-                         'steps': [
-                             {'range': [0, 50], 'color': "#d63031"},
-                             {'range': [50, 80], 'color': "#fdcb6e"}],
-                         }
-            ))
-            fig_gauge.update_layout(template="plotly_dark", height=350)
-            st.plotly_chart(fig_gauge, use_container_width=True)
-
-# ----------------------------------------
-# ONGLET 3 : PROFIL 360° DU MODÉRATEUR
-# ----------------------------------------
-with tab3:
-    st.subheader("Dossier Individuel")
-    liste_modos = df[col_nom].dropna().unique().tolist()
-    modo_choisi = st.selectbox("Rechercher un modérateur :", ["-- Sélectionner --"] + sorted(liste_modos))
-    
-    if modo_choisi != "-- Sélectionner --":
-        stats_modo = df[df[col_nom] == modo_choisi].iloc[0]
-        
-        col_prof1, col_prof2 = st.columns([1, 2])
-        with col_prof1:
-            st.markdown(f"## 👤 {modo_choisi}")
-            score_actuel = stats_modo[col_score] if col_score else "N/A"
-            st.metric("Score Global", score_actuel)
-            
-            if col_bcp and col_peu and col_pas:
-                st.write(f"**🟢 Fortes activités :** {stats_modo[col_bcp]}")
-                st.write(f"**🟡 Faibles activités :** {stats_modo[col_peu]}")
-                st.write(f"**🔴 Absences :** {stats_modo[col_pas]}")
-                
-        with col_prof2:
-            if col_bcp and col_peu and col_pas:
-                fig_radar = go.Figure(data=go.Scatterpolar(
-                  r=[stats_modo[col_bcp], stats_modo[col_peu], stats_modo[col_pas], stats_modo[col_bcp]],
-                  theta=['Implication Forte', 'Présence Légère', 'Absences', 'Fiabilité'],
-                  fill='toself',
-                  line_color='#a29bfe'
-                ))
-                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True)), showlegend=False, template="plotly_dark", title="Radar d'Activité")
-                st.plotly_chart(fig_radar, use_container_width=True)
-
-# ----------------------------------------
-# ONGLET 4 : LE SCANNEUR QUOTIDIEN (.txt)
-# ----------------------------------------
-with tab4:
-    st.subheader("Analyse du tchat en direct")
+    st.markdown("### ⚡ Analyse des logs bruts Twitch")
     if fichier_txt is not None:
         content = fichier_txt.read().decode("utf-8")
         lines = content.split('\n')
         
         mod_counts = Counter()
         keywords = ['Message supprimé', 'Avertissement', 'Banni', 'Ajouté', 'Supprimé', 'Retiré', 'Activé', 'Demande', 'Exclusion', 'Vous avez été']
-        
         for line in lines:
             if any(k in line for k in keywords):
                 match = re.search(r' par ([\w_]+)', line)
@@ -179,20 +209,26 @@ with tab4:
         if mod_counts:
             data_jour = []
             for mod, count in mod_counts.most_common():
-                if count >= 10:
-                    statut = "🟢 Active beaucoup"
-                elif count > 0:
-                    statut = "🟡 Active un peu"
-                else:
-                    statut = "🔴 Pas là"
+                if count >= 10: statut = "🟢 Active beaucoup"
+                elif count > 0: statut = "🟡 Active un peu"
+                else: statut = "🔴 Pas là"
                 data_jour.append({"Modérateur": mod, "Actions": count, "Statut": statut})
                 
             df_jour = pd.DataFrame(data_jour)
-            
             st.success("✅ Fichier journalier analysé avec succès !")
-            st.dataframe(df_jour, use_container_width=True)
             
-            csv_jour = df_jour.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Télécharger ces stats pour mettre à jour l'Excel", data=csv_jour, file_name='nouveau_jour.csv', mime='text/csv')
+            c_bar, c_tab = st.columns(2)
+            with c_bar:
+                fig_jour = px.bar(df_jour.head(15), x='Modérateur', y='Actions', text='Actions', color='Actions', color_continuous_scale='Blues', template="plotly_dark")
+                st.plotly_chart(fig_jour, use_container_width=True)
+            with c_tab:
+                st.dataframe(df_jour, use_container_width=True)
+                csv_jour = df_jour.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Télécharger ces stats pour mettre à jour l'Excel", data=csv_jour, file_name='nouveau_jour.csv', mime='text/csv')
     else:
-        st.info("👈 Glisse le fichier .txt du jour dans la barre latérale à gauche pour le faire analyser par l'IA.")
+        st.info("👈 Glisse le fichier .txt du jour dans la barre latérale à gauche.")
+
+# --- ONGLET 3 : DATA BRUTE ---
+with tab3:
+    st.markdown("### 💾 Fichier Source")
+    st.dataframe(df_brut, use_container_width=True)
