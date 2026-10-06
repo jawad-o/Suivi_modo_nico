@@ -20,13 +20,21 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 🤖 Analyse Quotidienne")
 fichier_txt = st.sidebar.file_uploader("Glisse le .txt du jour ici", type=["txt"])
 
-# --- CHARGEMENT AUTO DE L'EXCEL ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📁 Secours (Optionnel)")
+fichier_excel_secours = st.sidebar.file_uploader("Si le fichier automatique ne charge pas, glisse ton Excel ici", type=["xlsx", "ods"])
+
+# --- CHARGEMENT DE L'EXCEL (SANS CACHE POUR ÉVITER LES BUGS) ---
 FICHIER_EXCEL = "suivi.xlsx"
 
-@st.cache_data
 def charger_donnees():
-    if os.path.exists(FICHIER_EXCEL):
+    # 1. On donne la priorité au fichier glissé manuellement si besoin
+    if fichier_excel_secours is not None:
+        return pd.read_excel(fichier_excel_secours)
+    # 2. Sinon on cherche le fichier automatique sur GitHub
+    elif os.path.exists(FICHIER_EXCEL):
         return pd.read_excel(FICHIER_EXCEL)
+    # 3. Si aucun des deux, on renvoie une erreur
     return None
 
 df = charger_donnees()
@@ -35,7 +43,7 @@ df = charger_donnees()
 st.title("👑 QG Modération - Direction")
 
 if df is None:
-    st.error("⚠️ Fichier 'suivi.xlsx' introuvable sur le GitHub. Pense à l'importer en cliquant sur 'Add file' > 'Upload files' sur GitHub !")
+    st.error("⚠️ Fichier 'suivi.xlsx' introuvable sur le GitHub. Tu peux utiliser la zone d'import 'Secours' dans le menu de gauche en attendant !")
     st.stop()
 
 # Nettoyage et préparation des données
@@ -72,10 +80,9 @@ with tab1:
         st.markdown("---")
         
         # Heatmap (Tableau stylisé)
-        st.subheader("🗺️ Carte de chaleur des présences")
+        st.subheader("🗺️️ Carte de chaleur des présences")
         st.write("Plus la case est foncée, plus le score est élevé.")
         
-        # On affiche le dataframe avec un dégradé de couleurs sur le score
         df_display = df_top[[col_nom, col_score, col_bcp, col_peu, col_pas]].copy()
         st.dataframe(df_display.style.background_gradient(subset=[col_score], cmap="Greens"), use_container_width=True)
     else:
@@ -90,7 +97,6 @@ with tab2:
         c1, c2 = st.columns(2)
         
         with c1:
-            # Treemap : Vue proportionnelle de l'équipe
             fig_tree = px.treemap(df_top.head(15), path=[px.Constant("Équipe"), col_nom], values=col_score,
                                   color=col_score, color_continuous_scale='Purp',
                                   title="Poids de chaque modérateur dans l'équipe (Top 15)")
@@ -98,7 +104,6 @@ with tab2:
             st.plotly_chart(fig_tree, use_container_width=True)
             
         with c2:
-            # Jauge globale d'absentéisme
             tot_presences = df_top[col_bcp].sum() + df_top[col_peu].sum()
             tot_absences = df_top[col_pas].sum()
             tx_presence = (tot_presences / (tot_presences + tot_absences)) * 100 if (tot_presences + tot_absences) > 0 else 0
@@ -142,7 +147,6 @@ with tab3:
                 
         with col_prof2:
             if col_bcp and col_peu and col_pas:
-                # Graphique Radar des compétences
                 fig_radar = go.Figure(data=go.Scatterpolar(
                   r=[stats_modo[col_bcp], stats_modo[col_peu], stats_modo[col_pas], stats_modo[col_bcp]],
                   theta=['Implication Forte', 'Présence Légère', 'Absences', 'Fiabilité'],
