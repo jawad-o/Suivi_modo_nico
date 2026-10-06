@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TwitchMod Manager Pro</title>
+    <!-- Tailwind CSS pour un design ultra moderne -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        twitch: '#9146FF',
+                        dark: '#0e0e10',
+                        panel: '#18181b',
+                        panelHover: '#27272b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Animations fluides */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Style du scrollbar caché */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0e0e10; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9146FF; }
+    </style>
+</head>
+<body class="bg-dark text-white font-sans antialiased flex h-screen overflow-hidden selection:bg-twitch selection:text-white">
+
+    <!-- BARRE LATÉRALE (SIDEBAR) -->
+    <aside class="w-72 bg-panel border-r border-gray-800 flex flex-col justify-between">
+        <div>
+            <div class="p-8 flex items-center gap-3 border-b border-gray-800">
+                <div class="w-10 h-10 bg-twitch rounded-lg flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(145,70,255,0.5)]">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-wide">TwitchMod</h1>
+                    <p class="text-xs text-gray-400">Panel Manager Pro</p>
+                </div>
+            </div>
+            <nav class="p-4 space-y-2">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-twitch text-white rounded-lg font-medium shadow-lg shadow-twitch/20 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Scanneur Temps Réel
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-panelHover rounded-lg font-medium transition-all opacity-50 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    CRM Global (Bientôt)
+                </a>
+            </nav>
+        </div>
+        <div class="p-6 text-xs text-gray-600 text-center border-t border-gray-800">
+            Version 3.0 • Vercel Edition
+        </div>
+    </aside>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto relative">
+        <div class="max-w-5xl mx-auto p-10">
+            
+            <!-- En-tête -->
+            <header class="mb-10">
+                <h2 class="text-3xl font-extrabold mb-2">Scanneur d'Activité</h2>
+                <p class="text-gray-400">Importe les logs Twitch (.txt) pour analyser l'équipe instantanément.</p>
+            </header>
+
+            <!-- Zone de Drag & Drop -->
+            <div id="dropzone" class="border-2 border-dashed border-gray-700 bg-panel hover:border-twitch hover:bg-panelHover transition-all duration-300 rounded-2xl p-16 text-center cursor-pointer group">
+                <div class="w-20 h-20 bg-gray-800 group-hover:bg-twitch/20 text-twitch rounded-full flex items-center justify-center mx-auto mb-6 transition-all duration-300">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Glisse ton fichier .txt ici</h3>
+                <p class="text-gray-500 mb-6">ou clique pour parcourir tes dossiers</p>
+                <input type="file" id="fileInput" class="hidden" accept=".txt">
+                <button class="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-full font-medium transition-colors">Sélectionner un fichier</button>
+            </div>
+
+            <!-- Zone des Résultats (Cachée par défaut) -->
+            <div id="resultsArea" class="hidden mt-12 fade-in">
+                
+                <div class="flex items-center justify-between mb-8">
+                    <h3 class="text-2xl font-bold flex items-center gap-3">
+                        🏆 Podium du Jour
+                    </h3>
+                    <button id="resetBtn" class="text-sm text-gray-400 hover:text-white flex items-center gap-2 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Nouvelle analyse
+                    </button>
+                </div>
+
+                <!-- PODIUM -->
+                <div class="grid grid-cols-3 gap-6 mb-12 items-end" id="podiumContainer">
+                    <!-- Généré par JS -->
+                </div>
+
+                <!-- LISTE DU RESTE DE L'ÉQUIPE -->
+                <h3 class="text-xl font-bold mb-6 text-gray-400">Reste de l'équipe active</h3>
+                <div class="bg-panel rounded-2xl overflow-hidden border border-gray-800" id="listContainer">
+                    <!-- Généré par JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Moteur JavaScript -->
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const resultsArea = document.getElementById('resultsArea');
+        const podiumContainer = document.getElementById('podiumContainer');
+        const listContainer = document.getElementById('listContainer');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // Gestion du clic pour ouvrir le fichier
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        // Gestion du Drag & Drop
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('border-twitch', 'bg-panelHover');
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('border-twitch', 'bg-panelHover');
+        });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-twitch', 'bg-panelHover');
+            if(e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length) processFile(e.target.files[0]);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            resultsArea.classList.add('hidden');
+            dropzone.classList.remove('hidden');
+            fileInput.value = "";
+        });
+
+        // Lecture et Analyse du fichier
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const lines = text.split('\n');
+                const counts = {};
+                const keywords = ['Message supprimé', 'Avertissement', 'Banni', 'Ajouté', 'Supprimé', 'Retiré', 'Activé', 'Demande', 'Exclusion', 'Vous avez été'];
+                
+                lines.forEach(line => {
+                    if(keywords.some(k => line.includes(k))) {
+                        const match = line.match(/ par ([\w_]+)/);
+                        if(match) {
+                            const mod = match[1];
+                            if(!['wizebot', 'erreur'].includes(mod.toLowerCase())) {
+                                counts[mod] = (counts[mod] || 0) + 1;
+                            }
+                        }
+                    }
+                });
+
+                // Tri des résultats
+                const sortedMods = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                displayResults(sortedMods);
+            };
+            reader.readAsText(file);
+        }
+
+        function displayResults(data) {
+            dropzone.classList.add('hidden');
+            resultsArea.classList.remove('hidden');
+            
+            // Affichage du Podium (Top 3)
+            podiumContainer.innerHTML = '';
+            const top3 = [data[1], data[0], data[2]]; // Ordre visuel : 2ème, 1er, 3ème
+            const styles = [
+                { bg: 'bg-gray-800 border-gray-600', height: 'h-40', icon: '🥈', color: 'text-gray-300' }, // 2ème
+                { bg: 'bg-twitch/20 border-twitch', height: 'h-48', icon: '🥇', color: 'text-twitch' },   // 1er
+                { bg: 'bg-[#5c3a21] border-[#cd6133]', height: 'h-32', icon: '🥉', color: 'text-[#e67e22]' }  // 3ème
+            ];
+
+            top3.forEach((modData, index) => {
+                if(modData) {
+                    const [name, score] = modData;
+                    const style = styles[index];
+                    const seed = name; // Pour générer un avatar
+                    
+                    podiumContainer.innerHTML += `
+                        <div class="flex flex-col items-center fade-in" style="animation-delay: ${index * 0.1}s">
+                            <div class="text-4xl mb-3">${style.icon}</div>
+                            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${seed}&backgroundColor=18181b" class="w-16 h-16 rounded-full border-2 border-gray-700 shadow-lg mb-4 bg-panel">
+                            <div class="font-bold text-lg">${name}</div>
+                            <div class="text-gray-400 mb-4">${score} actions</div>
+                            <div class="w-full rounded-t-xl border-t-2 border-l-2 border-r-2 ${style.bg} ${style.height} flex justify-center items-center relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent"></div>
+                                <span class="text-3xl font-black ${style.color} opacity-50">${index === 0 ? '2' : index === 1 ? '1' : '3'}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    podiumContainer.innerHTML += `<div></div>`; // Remplissage si moins de 3 modos
+                }
+            });
+
+            // Affichage du reste (Liste)
+            listContainer.innerHTML = '';
+            if(data.length > 3) {
+                const others = data.slice(3);
+                others.forEach(([name, score], index) => {
+                    listContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-5 border-b border-gray-800 hover:bg-panelHover transition-colors">
+                            <div class="flex items-center gap-4">
+                                <span class="text-gray-500 font-bold w-6 text-center">#${index + 4}</span>
+                                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${name}&backgroundColor=1e2130" class="w-10 h-10 rounded-full bg-dark">
+                                <span class="font-semibold text-lg">${name}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-32 bg-dark rounded-full h-2 overflow-hidden">
+                                    <div class="bg-gray-600 h-2 rounded-full" style="width: ${(score/data[0][1])*100}%"></div>
+                                </div>
+                                <span class="font-bold text-twitch w-12 text-right">${score}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                listContainer.innerHTML = `<div class="p-6 text-center text-gray-500">Aucun autre modérateur actif aujourd'hui.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
